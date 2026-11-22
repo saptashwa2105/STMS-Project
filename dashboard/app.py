@@ -1,9 +1,23 @@
+import os
 import time
 import datetime
 import json
 import urllib.request
 import plotly.graph_objects as go
 import streamlit as st
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# -------------------------------------------------------------
+# Cloud / Local Backend API Configuration
+# -------------------------------------------------------------
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+BACKEND_URL = f"{API_BASE_URL}/api/stats"
+COMMAND_URL = f"{API_BASE_URL}/api/command"
 
 # -------------------------------------------------------------
 # Page Configuration
@@ -67,8 +81,6 @@ st.markdown("""
 # -------------------------------------------------------------
 # Remote Command Dispatcher (Cloud-to-Edge)
 # -------------------------------------------------------------
-COMMAND_URL = "http://127.0.0.1:8000/api/command"
-
 def send_remote_command(action: str, lane: str = None) -> tuple:
     try:
         payload = json.dumps({"action": action, "lane": lane}).encode("utf-8")
@@ -150,8 +162,6 @@ st.sidebar.caption("⚡ Latency: Cloud REST ➔ Godot Edge Poll (1.0s)")
 # -------------------------------------------------------------
 # Data Fetching
 # -------------------------------------------------------------
-BACKEND_URL = "http://127.0.0.1:8000/api/stats"
-
 data = None
 fetch_error = None
 
@@ -176,7 +186,7 @@ with header_col1:
 
 with header_col2:
     if data is not None and not fetch_error:
-        st.success("🟢 Backend Connected (127.0.0.1:8000)")
+        st.success(f"🟢 Backend Connected ({API_BASE_URL})")
     else:
         st.warning("🟡 Waiting for Backend Server...")
 
@@ -228,8 +238,8 @@ with st.expander("🎛️ Remote Traffic Control Center (Cloud-to-Edge Quick Act
 # Dashboard Display Logic
 # -------------------------------------------------------------
 if fetch_error or data is None:
-    st.warning("⚠️ Waiting for Backend Server... (Ensure FastAPI is running on http://127.0.0.1:8000)")
-    st.info("💡 To start the backend, run: `run_backend.bat` or `python -m uvicorn backend.main:app --port 8000`")
+    st.warning(f"⚠️ Waiting for Backend Server... (Connecting to: `{API_BASE_URL}`)")
+    st.info(f"💡 For local run, start FastAPI with: `run_backend.bat` or `python -m uvicorn backend.main:app --port 8000`\n\nFor cloud run on Render, set environment variable `API_BASE_URL` to your live FastAPI Render URL (e.g. `https://stms-backend.onrender.com`).")
 elif len(data) == 0:
     st.info("📡 Backend is online. Waiting for initial telemetry from Godot 3D simulation...")
     st.write("Launch the Godot simulation using `run_simulation.bat`.")

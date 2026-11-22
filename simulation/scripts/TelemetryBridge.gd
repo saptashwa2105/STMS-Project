@@ -22,6 +22,8 @@ func _ready():
 
 func setup(controller: Node):
 	traffic_controller = controller
+	if traffic_controller and ("api_base_url" in traffic_controller) and traffic_controller.api_base_url != "":
+		backend_url = traffic_controller.api_base_url.rstrip("/") + "/api/telemetry"
 
 func _process(delta: float):
 	timer += delta

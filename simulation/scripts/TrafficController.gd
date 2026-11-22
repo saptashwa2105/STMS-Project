@@ -14,11 +14,12 @@ signal remote_command_executed(action: String, lane: String)
 @export var intersection_clear_zone: Area3D
 @export var vehicle_spawner: Node
 
-# Cloud-to-Edge Remote Control Polling Configuration
-@export var command_url: String = "http://127.0.0.1:8000/api/command"
+# Backend Cloud API Configuration (Render / Local)
+@export var api_base_url: String = "http://127.0.0.1:8000"
 @export var command_poll_interval: float = 1.0
 
 # Remote Command State
+var command_url: String = ""
 var command_http: HTTPRequest
 var command_poll_timer: float = 0.0
 var is_command_poll_in_flight: bool = false
@@ -75,9 +76,10 @@ const MIN_ALL_RED_TIME: float = 1.8
 const MAX_ALL_RED_TIME: float = 3.5
 
 func _ready():
+	command_url = api_base_url.rstrip("/") + "/api/command"
 	command_http = HTTPRequest.new()
 	command_http.name = "CommandHTTPRequest"
-	command_http.timeout = 1.5
+	command_http.timeout = 2.0
 	add_child(command_http)
 	command_http.request_completed.connect(_on_command_request_completed)
 
@@ -562,6 +564,8 @@ func _poll_command_timer(delta: float):
 func _poll_remote_command():
 	if is_command_poll_in_flight or not is_inside_tree() or not command_http:
 		return
+	if command_url == "":
+		command_url = api_base_url.rstrip("/") + "/api/command"
 	is_command_poll_in_flight = true
 	var headers = ["User-Agent: STMS-Godot-Edge/1.0"]
 	var err = command_http.request(command_url, headers, HTTPClient.METHOD_GET)

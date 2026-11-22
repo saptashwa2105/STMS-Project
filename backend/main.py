@@ -8,17 +8,39 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, Float, String, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-# -------------------------------------------------------------
-# Database Setup (SQLAlchemy + SQLite: traffic.db)
-# -------------------------------------------------------------
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_FILE = os.path.join(DB_DIR, "traffic.db")
-DATABASE_URL = f"sqlite:///{DB_FILE}"
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+# -------------------------------------------------------------
+# Database Setup (PostgreSQL on Neon / SQLite Local Fallback)
+# -------------------------------------------------------------
+raw_db_url = os.getenv("DATABASE_URL")
+if raw_db_url:
+    # Render and Neon PostgreSQL compatibility (replace postgres:// with postgresql://)
+    if raw_db_url.startswith("postgres://"):
+        DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
+    else:
+        DATABASE_URL = raw_db_url
+else:
+    DB_DIR = os.path.dirname(os.path.abspath(__file__))
+    # Fallback to local SQLite database (stms.db / traffic.db)
+    default_name = "stms.db"
+    if os.path.exists(os.path.join(DB_DIR, "traffic.db")) and not os.path.exists(os.path.join(DB_DIR, "stms.db")):
+        default_name = "traffic.db"
+    DB_FILE = os.path.join(DB_DIR, default_name)
+    DATABASE_URL = f"sqlite:///{DB_FILE}"
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -87,10 +109,14 @@ app.add_middleware(
 # -------------------------------------------------------------
 @app.get("/")
 def health_check():
+    db_display = DATABASE_URL
+    if "@" in db_display:
+        parts = db_display.split("@")
+        db_display = f"{parts[0].split(':')[0]}://****@{parts[1]}"
     return {
         "status": "online",
         "service": "STMS Fail-Safe Backend API",
-        "database": DB_FILE,
+        "database": db_display,
         "endpoints": {
             "POST": ["/api/telemetry", "/api/command"],
             "GET": ["/api/stats", "/api/command"]

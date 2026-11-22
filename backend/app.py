@@ -9,6 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 app = FastAPI(
     title="Smart Traffic Management System (STMS) Digital Twin API",
     description="Backend ingestion, adaptive signal calculation, anti-starvation monitoring, and telemetry broadcast",
