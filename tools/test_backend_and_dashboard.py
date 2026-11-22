@@ -65,13 +65,14 @@ def run_tests():
         db.close()
 
     # 2. Test Endpoints directly via FastAPI handler functions
-    from backend.main import ingest_telemetry, get_stats, health_check
+    from backend.main import ingest_telemetry, get_stats, health_check, post_command, get_command
     import asyncio
     from unittest.mock import AsyncMock
 
     # Test health check
     hc = health_check()
     assert hc["status"] == "online"
+    assert "/api/command" in hc["endpoints"]["POST"]
     print("[PASS] GET / Health check endpoint:", hc)
 
     # Test GET /api/stats
@@ -113,6 +114,60 @@ def run_tests():
     post_bad_resp = asyncio.run(ingest_telemetry(req_bad))
     assert post_bad_resp.status_code == 400
     print("[PASS] POST /api/telemetry (Malformed JSON) -> HTTP 400 Graceful:", json.loads(post_bad_resp.body.decode()))
+
+    # 3. Test Cloud-to-Edge Remote Command Endpoints (/api/command)
+    print("\n--- Testing Cloud-to-Edge Remote Command API ---")
+    
+    # 3a. Test FORCE_ALL_RED command dispatch
+    cmd_req1 = FakeRequest({"action": "FORCE_ALL_RED"})
+    res1 = asyncio.run(post_command(cmd_req1))
+    assert res1.status_code == 200
+    res1_body = json.loads(res1.body.decode())
+    assert res1_body["command"]["action"] == "FORCE_ALL_RED"
+    print("[PASS] POST /api/command (FORCE_ALL_RED) -> HTTP 200:", res1_body)
+
+    # 3b. Test GET /api/command retrieves and clears the queued command
+    fetch1 = get_command()
+    assert fetch1.status_code == 200
+    fetch1_body = json.loads(fetch1.body.decode())
+    assert fetch1_body["action"] == "FORCE_ALL_RED"
+    assert fetch1_body["command_id"] is not None
+    print("[PASS] GET /api/command (1st Poll) -> Received queued command:", fetch1_body)
+
+    fetch2 = get_command()
+    assert fetch2.status_code == 200
+    fetch2_body = json.loads(fetch2.body.decode())
+    assert fetch2_body["action"] is None
+    print("[PASS] GET /api/command (2nd Poll) -> Command reset verified (action is None)")
+
+    # 3c. Test TRIGGER_EMERGENCY with lane
+    cmd_req2 = FakeRequest({"action": "TRIGGER_EMERGENCY", "lane": "West"})
+    res2 = asyncio.run(post_command(cmd_req2))
+    assert res2.status_code == 200
+    res2_body = json.loads(res2.body.decode())
+    assert res2_body["command"]["action"] == "TRIGGER_EMERGENCY"
+    assert res2_body["command"]["lane"] == "west"
+
+    fetch3 = get_command()
+    fetch3_body = json.loads(fetch3.body.decode())
+    assert fetch3_body["action"] == "TRIGGER_EMERGENCY"
+    assert fetch3_body["lane"] == "west"
+    print("[PASS] POST + GET /api/command (TRIGGER_EMERGENCY: West) verified.")
+
+    # 3d. Test SPAWN_TRAFFIC_SURGE and RESUME_AUTO
+    res3 = asyncio.run(post_command(FakeRequest({"action": "SPAWN_TRAFFIC_SURGE"})))
+    assert res3.status_code == 200
+    assert json.loads(get_command().body.decode())["action"] == "SPAWN_TRAFFIC_SURGE"
+
+    res4 = asyncio.run(post_command(FakeRequest({"action": "RESUME_AUTO"})))
+    assert res4.status_code == 200
+    assert json.loads(get_command().body.decode())["action"] == "RESUME_AUTO"
+    print("[PASS] POST + GET /api/command (SPAWN_TRAFFIC_SURGE & RESUME_AUTO) verified.")
+
+    # 3e. Test missing action validation
+    res_invalid = asyncio.run(post_command(FakeRequest({})))
+    assert res_invalid.status_code == 400
+    print("[PASS] POST /api/command (Missing action) -> Graceful HTTP 400")
 
     print("\nALL STMS BACKEND MODULE TESTS COMPLETED WITH ZERO ERRORS!")
 

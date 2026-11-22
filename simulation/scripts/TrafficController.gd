@@ -4,6 +4,7 @@ signal phase_changed(new_phase: String, duration: float)
 signal emergency_preemption_triggered(lane: String)
 signal emergency_preemption_ended()
 signal anti_starvation_triggered(lane: String)
+signal remote_command_executed(action: String, lane: String)
 
 # Traffic Light Poles references
 @export var pole_north: Node3D
@@ -11,6 +12,18 @@ signal anti_starvation_triggered(lane: String)
 @export var pole_east: Node3D
 @export var pole_west: Node3D
 @export var intersection_clear_zone: Area3D
+@export var vehicle_spawner: Node
+
+# Cloud-to-Edge Remote Control Polling Configuration
+@export var command_url: String = "http://127.0.0.1:8000/api/command"
+@export var command_poll_interval: float = 1.0
+
+# Remote Command State
+var command_http: HTTPRequest
+var command_poll_timer: float = 0.0
+var is_command_poll_in_flight: bool = false
+var last_executed_command_id: String = ""
+var manual_override_all_red: bool = false
 
 # State machine variables
 var current_phase: String = "NS_GREEN"
@@ -62,12 +75,24 @@ const MIN_ALL_RED_TIME: float = 1.8
 const MAX_ALL_RED_TIME: float = 3.5
 
 func _ready():
+	command_http = HTTPRequest.new()
+	command_http.name = "CommandHTTPRequest"
+	command_http.timeout = 1.5
+	add_child(command_http)
+	command_http.request_completed.connect(_on_command_request_completed)
+
+	if not vehicle_spawner:
+		vehicle_spawner = get_node_or_null("../VehicleSpawner")
+
 	_enter_phase("NS_GREEN")
 
 func _process(delta: float):
 	_update_wait_times(delta)
+	_poll_command_timer(delta)
 
-	if emergency_active:
+	if manual_override_all_red:
+		_process_manual_all_red(delta)
+	elif emergency_active:
 		_process_emergency_mode(delta)
 	else:
 		_process_standard_adaptive_cycle(delta)
@@ -117,6 +142,9 @@ func get_intersection_lock_name() -> String:
 	return "UNKNOWN"
 
 func can_lane_enter(lane: String) -> bool:
+	if manual_override_all_red:
+		return false
+
 	if emergency_active:
 		# Only the active emergency corridor may enter
 		if lane != active_emergency_lane:
@@ -254,6 +282,13 @@ func _update_signal_poles():
 	if not pole_north or not pole_south or not pole_east or not pole_west:
 		return
 
+	if manual_override_all_red:
+		if pole_north.has_method("set_signal"): pole_north.set_signal("RED")
+		if pole_south.has_method("set_signal"): pole_south.set_signal("RED")
+		if pole_east.has_method("set_signal"): pole_east.set_signal("RED")
+		if pole_west.has_method("set_signal"): pole_west.set_signal("RED")
+		return
+
 	if emergency_active:
 		if current_phase == "ALL_RED_EMERGENCY":
 			if pole_north.has_method("set_signal"): pole_north.set_signal("RED")
@@ -303,6 +338,9 @@ func _update_signal_poles():
 			if pole_west.has_method("set_signal"): pole_west.set_signal("RED")
 
 func get_lane_signal_state(lane: String) -> String:
+	if manual_override_all_red:
+		return "RED"
+
 	if emergency_active:
 		if current_phase == "ALL_RED_EMERGENCY":
 			return "RED"
@@ -508,5 +546,140 @@ func get_telemetry_payload() -> Dictionary:
 		"vehicles_cleared_total": vehicles_cleared_total,
 		"max_wait_time_seconds": round(max_wait * 10.0) / 10.0,
 		"anti_starvation_active": starvation_active_lane != "",
-		"starving_lane": starvation_active_lane if starvation_active_lane != "" else null
+		"starving_lane": starvation_active_lane if starvation_active_lane != "" else null,
+		"manual_override_active": manual_override_all_red
 	}
+
+# =============================================================
+# Cloud-to-Edge Remote Command Engine
+# =============================================================
+func _poll_command_timer(delta: float):
+	command_poll_timer += delta
+	if command_poll_timer >= command_poll_interval:
+		command_poll_timer = 0.0
+		_poll_remote_command()
+
+func _poll_remote_command():
+	if is_command_poll_in_flight or not is_inside_tree() or not command_http:
+		return
+	is_command_poll_in_flight = true
+	var headers = ["User-Agent: STMS-Godot-Edge/1.0"]
+	var err = command_http.request(command_url, headers, HTTPClient.METHOD_GET)
+	if err != OK:
+		is_command_poll_in_flight = false
+
+func _on_command_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+	is_command_poll_in_flight = false
+	if response_code != 200 or body.is_empty():
+		return
+
+	var json = JSON.new()
+	var parse_err = json.parse(body.get_string_from_utf8())
+	if parse_err != OK:
+		return
+
+	var data = json.data
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+
+	var action = data.get("action", null)
+	if action == null or str(action) == "" or str(action) == "<null>":
+		return
+
+	var cmd_id = str(data.get("command_id", ""))
+	if cmd_id != "" and cmd_id == last_executed_command_id:
+		return
+
+	if cmd_id != "":
+		last_executed_command_id = cmd_id
+
+	var target_lane = str(data.get("lane", "")).to_lower()
+	if target_lane == "<null>":
+		target_lane = ""
+	execute_remote_command(str(action).to_upper(), target_lane)
+
+func execute_remote_command(action: String, lane: String = ""):
+	print("[TrafficController] Executing Remote Command: ", action, " (Lane: ", lane, ")")
+	match action:
+		"FORCE_ALL_RED":
+			force_all_red()
+		"TRIGGER_EMERGENCY":
+			trigger_remote_emergency(lane)
+		"SPAWN_TRAFFIC_SURGE":
+			trigger_traffic_surge(lane)
+		"RESUME_AUTO":
+			resume_automatic_mode()
+		_:
+			print("[TrafficController] Unknown remote command action: ", action)
+	remote_command_executed.emit(action, lane)
+
+func _process_manual_all_red(_delta: float):
+	current_phase = "ALL_RED_MANUAL"
+	_update_signal_poles()
+
+func force_all_red():
+	manual_override_all_red = true
+	emergency_active = false
+	active_emergency_lane = ""
+	current_phase = "ALL_RED_MANUAL"
+	phase_timer = 0.0
+	phase_duration = 9999.0
+	intersection_lock = IntersectionLock.FREE
+	_update_signal_poles()
+	phase_changed.emit("ALL_RED_MANUAL", 9999.0)
+	print("[TrafficController] Cloud Override: FORCE_ALL_RED active. All signals locked RED.")
+
+func resume_automatic_mode():
+	manual_override_all_red = false
+	if emergency_active:
+		_finish_emergency_preemption()
+	else:
+		_enter_phase("NS_GREEN", calculate_adaptive_green_time("north_south"))
+	print("[TrafficController] Cloud Override: RESUME_AUTO. Returned to dynamic adaptive cycle.")
+
+func trigger_remote_emergency(lane: String = ""):
+	manual_override_all_red = false
+	var target_lane = lane.to_lower()
+	if not ["north", "south", "east", "west"].has(target_lane):
+		target_lane = "north"
+
+	if not vehicle_spawner:
+		vehicle_spawner = get_node_or_null("../VehicleSpawner")
+
+	if vehicle_spawner and vehicle_spawner.has_method("spawn_emergency_vehicle"):
+		var ev = vehicle_spawner.spawn_emergency_vehicle("ambulance", target_lane)
+		print("[TrafficController] Cloud Override: Spawned emergency vehicle on lane: ", target_lane, " (instance: ", ev, ")")
+	else:
+		# Direct fallback if spawner not in tree
+		emergency_active = true
+		active_emergency_lane = target_lane
+		if target_lane in ["north", "south"]:
+			current_phase = "EMERGENCY_NS"
+			intersection_lock = IntersectionLock.NS_ACTIVE
+		else:
+			current_phase = "EMERGENCY_EW"
+			intersection_lock = IntersectionLock.EW_ACTIVE
+		phase_timer = 0.0
+		phase_duration = 35.0
+		_update_signal_poles()
+		emergency_preemption_triggered.emit(active_emergency_lane)
+		print("[TrafficController] Cloud Override: Direct emergency preemption activated on: ", target_lane)
+
+func trigger_traffic_surge(lane: String = ""):
+	if not vehicle_spawner:
+		vehicle_spawner = get_node_or_null("../VehicleSpawner")
+
+	if vehicle_spawner and vehicle_spawner.has_method("spawn_traffic_burst"):
+		var target_lane = lane.to_lower()
+		if ["north", "south", "east", "west"].has(target_lane):
+			vehicle_spawner.spawn_traffic_burst(target_lane, 3)
+		else:
+			vehicle_spawner.spawn_traffic_burst("north", 2)
+			vehicle_spawner.spawn_traffic_burst("south", 2)
+			vehicle_spawner.spawn_traffic_burst("east", 2)
+			vehicle_spawner.spawn_traffic_burst("west", 2)
+		print("[TrafficController] Cloud Override: Traffic surge burst dispatched.")
+	else:
+		for l in lane_densities.keys():
+			lane_densities[l] += 3
+		print("[TrafficController] Cloud Override: Density surge applied to local metrics.")

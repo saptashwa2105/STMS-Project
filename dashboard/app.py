@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     page_title="Smart Traffic Dashboard",
     page_icon="🚦",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Custom Styling for polished dashboard aesthetic
@@ -54,8 +54,98 @@ st.markdown("""
         font-size: 1.1rem;
         letter-spacing: 0.05em;
     }
+    .control-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid #3b82f6;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# -------------------------------------------------------------
+# Remote Command Dispatcher (Cloud-to-Edge)
+# -------------------------------------------------------------
+COMMAND_URL = "http://127.0.0.1:8000/api/command"
+
+def send_remote_command(action: str, lane: str = None) -> tuple:
+    try:
+        payload = json.dumps({"action": action, "lane": lane}).encode("utf-8")
+        req = urllib.request.Request(
+            COMMAND_URL,
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": "STMS-Dashboard/1.0"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            if resp.status == 200:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                return True, resp_data.get("message", f"Command '{action}' sent successfully!")
+            return False, f"Backend returned HTTP {resp.status}"
+    except Exception as exc:
+        return False, f"Failed to send command: {str(exc)}"
+
+# -------------------------------------------------------------
+# Sidebar: Remote Traffic Control Center (Cloud-to-Edge)
+# -------------------------------------------------------------
+st.sidebar.markdown("## 🎛️ Remote Traffic Control Center")
+st.sidebar.caption("Cloud-to-Edge Live Override Engine")
+st.sidebar.markdown("---")
+
+st.sidebar.markdown("### 🚨 Emergency Corridor (EVP)")
+target_lane = st.sidebar.selectbox(
+    "Target Emergency Lane:",
+    options=["North", "South", "East", "West"],
+    index=0,
+    help="Select which lane the emergency vehicle enters from"
+)
+
+if st.sidebar.button("🚨 Trigger Emergency", use_container_width=True, type="primary"):
+    ok, msg = send_remote_command("TRIGGER_EMERGENCY", target_lane)
+    if ok:
+        st.toast(f"🚨 Dispatched Emergency Preemption on {target_lane} Lane!", icon="🚨")
+        st.session_state["cmd_status"] = f"🚨 Emergency preemption active on {target_lane} lane"
+    else:
+        st.sidebar.error(msg)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🚦 Signal Manual Override")
+
+col_stop, col_resume = st.sidebar.columns(2)
+with col_stop:
+    if st.button("🛑 Force All Red", use_container_width=True, help="Immediately halt all lanes with red signals"):
+        ok, msg = send_remote_command("FORCE_ALL_RED")
+        if ok:
+            st.toast("🛑 Force All Red Activated! All intersection poles locked RED.", icon="🛑")
+            st.session_state["cmd_status"] = "🛑 Force All Red active: all signals halted"
+        else:
+            st.sidebar.error(msg)
+
+with col_resume:
+    if st.button("✅ Resume Auto", use_container_width=True, help="Release manual override and resume dynamic adaptive cycle"):
+        ok, msg = send_remote_command("RESUME_AUTO")
+        if ok:
+            st.toast("✅ Automatic Adaptive Mode Resumed!", icon="✅")
+            st.session_state["cmd_status"] = "✅ Automatic adaptive cycle running"
+        else:
+            st.sidebar.error(msg)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🚗 Traffic Stress Testing")
+if st.sidebar.button("🚗 Inject Traffic Surge", use_container_width=True, help="Inject vehicle bursts across all lanes to stress-test adaptive queue scaling"):
+    ok, msg = send_remote_command("SPAWN_TRAFFIC_SURGE")
+    if ok:
+        st.toast("🚗 Injected Traffic Surge across all lanes!", icon="🚗")
+        st.session_state["cmd_status"] = "🚗 Traffic surge burst injected"
+    else:
+        st.sidebar.error(msg)
+
+if "cmd_status" in st.session_state:
+    st.sidebar.info(f"**Last Action:** {st.session_state['cmd_status']}")
+
+st.sidebar.markdown("---")
+st.sidebar.caption("⚡ Latency: Cloud REST ➔ Godot Edge Poll (1.0s)")
 
 # -------------------------------------------------------------
 # Data Fetching
@@ -91,6 +181,48 @@ with header_col2:
         st.warning("🟡 Waiting for Backend Server...")
 
 st.markdown("---")
+
+# -------------------------------------------------------------
+# Quick Remote Control Bar (Top Section)
+# -------------------------------------------------------------
+with st.expander("🎛️ Remote Traffic Control Center (Cloud-to-Edge Quick Actions)", expanded=False):
+    tcol1, tcol2, tcol3, tcol4 = st.columns([2, 1.2, 1.2, 1.4])
+    with tcol1:
+        top_lane = st.selectbox("EVP Target Lane:", ["North", "South", "East", "West"], key="top_lane_sel")
+        if st.button("🚨 Trigger Emergency", key="top_btn_emerg", use_container_width=True, type="primary"):
+            ok, msg = send_remote_command("TRIGGER_EMERGENCY", top_lane)
+            if ok:
+                st.toast(f"🚨 Dispatched Emergency on {top_lane}!", icon="🚨")
+                st.session_state["cmd_status"] = f"🚨 Emergency preemption active on {top_lane} lane"
+            else:
+                st.error(msg)
+    with tcol2:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🛑 Force Red", key="top_btn_red", use_container_width=True):
+            ok, msg = send_remote_command("FORCE_ALL_RED")
+            if ok:
+                st.toast("🛑 Force All Red Activated!", icon="🛑")
+                st.session_state["cmd_status"] = "🛑 Force All Red active: all signals halted"
+            else:
+                st.error(msg)
+    with tcol3:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("✅ Resume Auto", key="top_btn_auto", use_container_width=True):
+            ok, msg = send_remote_command("RESUME_AUTO")
+            if ok:
+                st.toast("✅ Resumed Auto Mode!", icon="✅")
+                st.session_state["cmd_status"] = "✅ Automatic adaptive cycle running"
+            else:
+                st.error(msg)
+    with tcol4:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🚗 Inject Surge", key="top_btn_surge", use_container_width=True):
+            ok, msg = send_remote_command("SPAWN_TRAFFIC_SURGE")
+            if ok:
+                st.toast("🚗 Injected Traffic Surge!", icon="🚗")
+                st.session_state["cmd_status"] = "🚗 Traffic surge burst injected"
+            else:
+                st.error(msg)
 
 # -------------------------------------------------------------
 # Dashboard Display Logic

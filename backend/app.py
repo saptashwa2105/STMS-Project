@@ -1,9 +1,10 @@
 import asyncio
 import os
 import time
+import uuid
 from collections import deque
 from typing import Dict, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -49,6 +50,18 @@ class SignalStateResponse(BaseModel):
     anti_starvation_active: bool
     starving_lane: Optional[str]
     computed_at: float
+
+class CommandPayload(BaseModel):
+    action: str
+    lane: Optional[str] = None
+
+# In-memory remote command state for Cloud-to-Edge override
+pending_command: Dict[str, Optional[str]] = {
+    "command_id": None,
+    "action": None,
+    "lane": None,
+    "timestamp": None
+}
 
 telemetry_history: deque = deque(maxlen=600)
 latest_telemetry = TelemetryData()
@@ -144,6 +157,47 @@ async def get_signal_state():
         starving_lane=latest_telemetry.starving_lane,
         computed_at=time.time()
     )
+
+@app.post("/api/command")
+async def post_command(payload: CommandPayload):
+    """
+    Accepts cloud control commands from Streamlit dashboard:
+    Actions: FORCE_ALL_RED, TRIGGER_EMERGENCY, SPAWN_TRAFFIC_SURGE, RESUME_AUTO
+    Lane: Optional (north, south, east, west)
+    """
+    global pending_command
+    action = payload.action.strip().upper()
+    lane = payload.lane.strip().lower() if payload.lane else None
+    cmd_id = str(uuid.uuid4())
+
+    pending_command = {
+        "command_id": cmd_id,
+        "action": action,
+        "lane": lane,
+        "timestamp": time.time()
+    }
+    return {
+        "status": "success",
+        "message": f"Command '{action}' queued successfully",
+        "command": pending_command
+    }
+
+@app.get("/api/command")
+def get_command():
+    """
+    Polled by Godot 3D Edge Simulation.
+    Returns current pending command and resets it once fetched.
+    """
+    global pending_command
+    cmd = dict(pending_command)
+    if cmd.get("action") is not None:
+        pending_command = {
+            "command_id": None,
+            "action": None,
+            "lane": None,
+            "timestamp": None
+        }
+    return JSONResponse(status_code=200, content=cmd)
 
 def get_computed_metrics():
     uptime = max(1.0, time.time() - start_time)

@@ -466,13 +466,14 @@ direction = "west"
 
 [node name="Vehicles" type="Node3D" parent="."]
 
-[node name="TrafficController" type="Node" parent="." node_paths=PackedStringArray("pole_north", "pole_south", "pole_east", "pole_west", "intersection_clear_zone")]
+[node name="TrafficController" type="Node" parent="." node_paths=PackedStringArray("pole_north", "pole_south", "pole_east", "pole_west", "intersection_clear_zone", "vehicle_spawner")]
 script = ExtResource("2_ctrl")
 pole_north = NodePath("../TrafficLights/PoleNorth")
 pole_south = NodePath("../TrafficLights/PoleSouth")
 pole_east = NodePath("../TrafficLights/PoleEast")
 pole_west = NodePath("../TrafficLights/PoleWest")
 intersection_clear_zone = NodePath("../IntersectionClearZone")
+vehicle_spawner = NodePath("../VehicleSpawner")
 
 [node name="TelemetryBridge" type="Node" parent="."]
 script = ExtResource("3_telem")

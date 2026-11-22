@@ -8,25 +8,34 @@ A real-time, adaptive 4-way intersection Smart Traffic Management System (STMS) 
 
 ```mermaid
 graph TD
+    subgraph StreamlitUI ["Streamlit Cloud Dashboard (http://localhost:8501)"]
+        RemoteControl["🎛️ Remote Control Center (Force Red, EVP, Surge, Auto)"]
+    end
+
+    subgraph Backend ["Python FastAPI Cloud Ingestion (http://127.0.0.1:8000)"]
+        Ingest["POST /api/telemetry"]
+        CmdPost["POST /api/command (Command Dispatcher)"]
+        CmdGet["GET /api/command (Command Queue)"]
+        SignalOpt["GET /api/signal-state"]
+        Metrics["GET /metrics"]
+        Stats["GET /api/stats (SQLite traffic.db)"]
+        WS["WebSocket /ws (Live Broadcast)"]
+    end
+
     subgraph Godot4 ["Godot 4.3 Simulation (Digital Twin)"]
         Vehicles["3D Vehicles: Passenger Car, Motorbike, Cargo Truck, Ambulance, Fire Truck"]
         YellowBox["IntersectionClearZone Area3D (Anti-Gridlock Yellow Box Rule)"]
         Sensors["Lane Density & Wait-Time Trackers"]
         Signals["4x Traffic Signal Poles (Emissive 3D Mesh)"]
-        Controller["TrafficController.gd (Adaptive Timing 10s-35s + 45s Anti-Starvation)"]
+        Controller["TrafficController.gd (Adaptive Timing + Remote Command Poller 1.0s)"]
         EVP["Emergency Vehicle Preemption (EVP) Engine"]
         Bridge["TelemetryBridge.gd (HTTPRequest Dispatcher 1.0s)"]
         HUD["UIOverlay.gd (Real-Time Metrics HUD)"]
     end
 
-    subgraph Backend ["Python FastAPI Cloud Ingestion (http://127.0.0.1:8000)"]
-        Ingest["POST /api/telemetry"]
-        SignalOpt["GET /api/signal-state"]
-        Metrics["GET /metrics"]
-        WS["WebSocket /ws (Live Broadcast)"]
-        WebDashboard["HTML5/CSS3 Live Dashboard (GET /)"]
-    end
-
+    RemoteControl -->|POST /api/command| CmdPost
+    CmdPost --> CmdGet
+    Controller -->|GET /api/command (1.0s Poller)| CmdGet
     YellowBox -->|Exit Clearance Verification| Vehicles
     Sensors -->|Lane Queue Counts & Wait Times| Controller
     Vehicles -->|EVP Trigger Key A / F| EVP
@@ -34,9 +43,21 @@ graph TD
     Controller -->|Signal States (Green, 2.5s Yellow, 1.5s All-Red)| Signals
     Controller -->|Telemetry Payload| Bridge
     Bridge -->|JSON HTTP POST 1.0s| Ingest
-    Ingest -->|Push Updates| WS
-    WS -->|Live Telemetry| WebDashboard
+    Stats --> StreamlitUI
 ```
+
+---
+
+## ✨ Key Enhancements in v1.3 (Two-Way Cloud-to-Edge Control)
+
+1. **Bidirectional Cloud-to-Edge Command Remote Override**:
+   - **Streamlit Control Center**: Allows dispatching live overrides from the browser (sidebar & quick actions panel).
+   - **Interactive Overrides**:
+     - 🚨 **Emergency Corridor (EVP)**: Dispatches emergency corridor on target lane (North/South/East/West) and spawns 3D emergency vehicle.
+     - 🛑 **Force All Red**: Freezes all signals to RED immediately and halts all incoming traffic.
+     - 🚗 **Traffic Surge**: Injects high-density queue burst across lanes to test adaptive signal scaling.
+     - ✅ **Resume Auto**: Safely clears overrides and returns control to dynamic adaptive timing.
+   - **Non-blocking Polling**: Godot edge simulation polls `GET /api/command` on a 1.0s non-blocking timer and executes commands with fail-safe local fallback if the cloud is offline.
 
 ---
 

@@ -62,6 +62,23 @@ def main():
         assert isinstance(stats, list)
         print(f"[PASS] GET /api/stats -> 200 OK ({len(stats)} records retrieved)")
 
+        # 6. Test Live Remote Command Endpoints
+        print("\n--- Testing Live Remote Command Endpoints ---")
+        cmd_post = requests.post("http://127.0.0.1:8000/api/command", json={"action": "FORCE_ALL_RED"}, timeout=3)
+        assert cmd_post.status_code == 200, f"Expected 200, got {cmd_post.status_code}"
+        assert cmd_post.json()["command"]["action"] == "FORCE_ALL_RED"
+        print("[PASS] POST /api/command -> 200 OK:", cmd_post.json())
+
+        cmd_poll1 = requests.get("http://127.0.0.1:8000/api/command", timeout=3)
+        assert cmd_poll1.status_code == 200
+        assert cmd_poll1.json()["action"] == "FORCE_ALL_RED"
+        print("[PASS] GET /api/command (1st Poll) -> Fetched command:", cmd_poll1.json())
+
+        cmd_poll2 = requests.get("http://127.0.0.1:8000/api/command", timeout=3)
+        assert cmd_poll2.status_code == 200
+        assert cmd_poll2.json()["action"] is None
+        print("[PASS] GET /api/command (2nd Poll) -> Command cleared once fetched.")
+
         print("\nLIVE BACKEND SERVER VERIFIED WITH ZERO ERRORS!")
 
     finally:

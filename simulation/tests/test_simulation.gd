@@ -185,5 +185,48 @@ func _init():
 	for i in range(5):
 		await physics_frame
 
+	# 9. Test Cloud-to-Edge Remote Commands on TrafficController
+	print("Testing Cloud-to-Edge Remote Commands on TrafficController...")
+	
+	# Test FORCE_ALL_RED
+	controller.execute_remote_command("FORCE_ALL_RED")
+	assert(controller.manual_override_all_red == true, "Manual override must be active!")
+	assert(controller.current_phase == "ALL_RED_MANUAL", "Current phase must be ALL_RED_MANUAL!")
+	assert(controller.get_lane_signal_state("north") == "RED", "North must be RED!")
+	assert(controller.get_lane_signal_state("south") == "RED", "South must be RED!")
+	assert(controller.get_lane_signal_state("east") == "RED", "East must be RED!")
+	assert(controller.get_lane_signal_state("west") == "RED", "West must be RED!")
+	assert(controller.can_lane_enter("north") == false, "No lane can enter during Force All Red!")
+	print("✓ Cloud Command: FORCE_ALL_RED verified.")
+
+	# Test RESUME_AUTO
+	controller.execute_remote_command("RESUME_AUTO")
+	assert(controller.manual_override_all_red == false, "Manual override must be cleared!")
+	assert(controller.current_phase == "NS_GREEN", "Phase must return to NS_GREEN!")
+	print("✓ Cloud Command: RESUME_AUTO verified.")
+
+	# Test TRIGGER_EMERGENCY on East lane
+	controller.execute_remote_command("TRIGGER_EMERGENCY", "east")
+	for i in range(5):
+		await physics_frame
+	assert(controller.emergency_active == true, "Emergency preemption must be active!")
+	assert(controller.active_emergency_lane == "east", "Emergency lane must be East!")
+	assert(controller.get_lane_signal_state("east") == "GREEN", "East corridor must be GREEN!")
+	assert(controller.get_lane_signal_state("north") == "RED", "Conflicting North lane must be RED!")
+	print("✓ Cloud Command: TRIGGER_EMERGENCY (East Corridor) verified.")
+
+	# Test RESUME_AUTO to release emergency
+	controller.execute_remote_command("RESUME_AUTO")
+	for i in range(5):
+		await physics_frame
+	assert(controller.emergency_active == false, "Emergency preemption must be released!")
+	print("✓ Cloud Command: RESUME_AUTO released emergency corridor successfully.")
+
+	# Test SPAWN_TRAFFIC_SURGE
+	controller.execute_remote_command("SPAWN_TRAFFIC_SURGE", "north")
+	for i in range(5):
+		await physics_frame
+	print("✓ Cloud Command: SPAWN_TRAFFIC_SURGE verified.")
+
 	print("=== ALL STMS ENHANCED TESTS PASSED SUCCESSFULLY! ===")
 	quit(0)

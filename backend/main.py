@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -54,12 +55,22 @@ class TrafficLog(Base):
 Base.metadata.create_all(bind=engine)
 
 # -------------------------------------------------------------
+# In-Memory Command Store (Cloud-to-Edge Remote Override)
+# -------------------------------------------------------------
+pending_command: Dict[str, Any] = {
+    "command_id": None,
+    "action": None,
+    "lane": None,
+    "timestamp": None
+}
+
+# -------------------------------------------------------------
 # FastAPI Application & Middleware
 # -------------------------------------------------------------
 app = FastAPI(
     title="STMS Fail-Safe Telemetry Backend",
-    description="Crash-proof cloud ingestion API for Godot 3D digital twin telemetry",
-    version="1.0.0"
+    description="Crash-proof cloud ingestion API & Remote Command Override for Godot 3D digital twin",
+    version="1.1.0"
 )
 
 # Enable CORS for all origins to prevent connection blocking
@@ -81,8 +92,8 @@ def health_check():
         "service": "STMS Fail-Safe Backend API",
         "database": DB_FILE,
         "endpoints": {
-            "POST": "/api/telemetry",
-            "GET": "/api/stats"
+            "POST": ["/api/telemetry", "/api/command"],
+            "GET": ["/api/stats", "/api/command"]
         }
     }
 
@@ -176,6 +187,69 @@ def get_stats():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"status": "error", "message": f"Database error: {str(exc)}"}
         )
+
+@app.post("/api/command")
+async def post_command(request: Request):
+    """
+    Accepts cloud control commands from Streamlit dashboard:
+    Actions: FORCE_ALL_RED, TRIGGER_EMERGENCY, SPAWN_TRAFFIC_SURGE, RESUME_AUTO
+    Lane: Optional (north, south, east, west)
+    """
+    global pending_command
+    try:
+        data = await request.json()
+        if not isinstance(data, dict):
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"status": "error", "message": "Payload must be a JSON object"}
+            )
+        action = data.get("action")
+        if not action:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"status": "error", "message": "Missing required field 'action'"}
+            )
+        lane = data.get("lane")
+        normalized_action = str(action).strip().upper()
+        normalized_lane = str(lane).strip().lower() if lane else None
+
+        cmd_id = str(uuid.uuid4())
+        pending_command = {
+            "command_id": cmd_id,
+            "action": normalized_action,
+            "lane": normalized_lane,
+            "timestamp": time.time()
+        }
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "success",
+                "message": f"Command '{normalized_action}' queued successfully",
+                "command": pending_command
+            }
+        )
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": "error", "message": f"Error queuing command: {str(exc)}"}
+        )
+
+@app.get("/api/command")
+def get_command():
+    """
+    Polled by Godot 3D Edge Simulation.
+    Returns current pending command and resets it once fetched so each command executes once.
+    """
+    global pending_command
+    cmd = dict(pending_command)
+    if cmd.get("action") is not None:
+        pending_command = {
+            "command_id": None,
+            "action": None,
+            "lane": None,
+            "timestamp": None
+        }
+    return JSONResponse(status_code=status.HTTP_200_OK, content=cmd)
 
 if __name__ == "__main__":
     import uvicorn
