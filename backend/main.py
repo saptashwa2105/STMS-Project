@@ -24,6 +24,17 @@ if raw_db_url:
         DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
     else:
         DATABASE_URL = raw_db_url
+
+    # Modern Python (3.12-3.14+) / Psycopg 3 driver detection
+    if DATABASE_URL.startswith("postgresql://"):
+        try:
+            import psycopg  # noqa: F401
+            try:
+                import psycopg2  # noqa: F401
+            except ImportError:
+                DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+        except ImportError:
+            pass
 else:
     DB_DIR = os.path.dirname(os.path.abspath(__file__))
     # Fallback to local SQLite database (stms.db / traffic.db)
