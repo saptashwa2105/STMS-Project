@@ -164,7 +164,25 @@ def run_tests():
     assert json.loads(get_command().body.decode())["action"] == "RESUME_AUTO"
     print("[PASS] POST + GET /api/command (SPAWN_TRAFFIC_SURGE & RESUME_AUTO) verified.")
 
-    # 3e. Test missing action validation
+    # 3e. Test in-memory batched queue popping (/api/commands)
+    asyncio.run(post_command(FakeRequest({"action": "FORCE_ALL_RED"})))
+    asyncio.run(post_command(FakeRequest({"action": "TRIGGER_EMERGENCY", "lane": "North"})))
+    batch_resp = get_command()
+    batch_data = json.loads(batch_resp.body.decode())
+    assert batch_data["count"] == 2
+    assert len(batch_data["commands"]) == 2
+    assert batch_data["commands"][0]["action"] == "FORCE_ALL_RED"
+    assert batch_data["commands"][1]["action"] == "TRIGGER_EMERGENCY"
+    assert batch_data["commands"][1]["lane"] == "north"
+    
+    # Confirm queue is now empty
+    empty_resp = get_command()
+    empty_data = json.loads(empty_resp.body.decode())
+    assert empty_data["count"] == 0
+    assert len(empty_data["commands"]) == 0
+    print("[PASS] In-memory atomic deque batch pop verified: multiple commands retrieved in order without drops.")
+
+    # 3f. Test missing action validation
     res_invalid = asyncio.run(post_command(FakeRequest({})))
     assert res_invalid.status_code == 400
     print("[PASS] POST /api/command (Missing action) -> Graceful HTTP 400")

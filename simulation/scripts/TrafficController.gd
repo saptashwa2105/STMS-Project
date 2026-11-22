@@ -15,8 +15,8 @@ signal remote_command_executed(action: String, lane: String)
 @export var vehicle_spawner: Node
 
 # Backend Cloud API Configuration (Render / Local)
-@export var api_base_url: String = "http://127.0.0.1:8000"
-@export var command_poll_interval: float = 1.0
+@export var api_base_url: String = "https://stms-project-l3vl.onrender.com"
+@export var command_poll_interval: float = 0.5
 
 # Remote Command State
 var command_url: String = ""
@@ -76,7 +76,7 @@ const MIN_ALL_RED_TIME: float = 1.8
 const MAX_ALL_RED_TIME: float = 3.5
 
 func _ready():
-	command_url = api_base_url.rstrip("/") + "/api/command"
+	command_url = api_base_url.rstrip("/") + "/api/commands"
 	command_http = HTTPRequest.new()
 	command_http.name = "CommandHTTPRequest"
 	command_http.timeout = 2.0
@@ -562,10 +562,13 @@ func _poll_command_timer(delta: float):
 		_poll_remote_command()
 
 func _poll_remote_command():
-	if is_command_poll_in_flight or not is_inside_tree() or not command_http:
+	if not is_inside_tree() or not command_http:
+		return
+	# Dedicated command HTTPRequest busy guard: never overlap or drop command requests
+	if is_command_poll_in_flight or command_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		return
 	if command_url == "":
-		command_url = api_base_url.rstrip("/") + "/api/command"
+		command_url = api_base_url.rstrip("/") + "/api/commands"
 	is_command_poll_in_flight = true
 	var headers = ["User-Agent: STMS-Godot-Edge/1.0"]
 	var err = command_http.request(command_url, headers, HTTPClient.METHOD_GET)
@@ -586,6 +589,16 @@ func _on_command_request_completed(_result: int, response_code: int, _headers: P
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 
+	# 1. Process batched commands array popped from in-memory queue
+	if data.has("commands") and typeof(data["commands"]) == TYPE_ARRAY:
+		for cmd_item in data["commands"]:
+			if typeof(cmd_item) == TYPE_DICTIONARY:
+				_process_single_command_data(cmd_item)
+	# 2. Or process single top-level command dictionary (backward compatibility)
+	elif data.has("action") and data["action"] != null:
+		_process_single_command_data(data)
+
+func _process_single_command_data(data: Dictionary):
 	var action = data.get("action", null)
 	if action == null or str(action) == "" or str(action) == "<null>":
 		return

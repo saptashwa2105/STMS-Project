@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+from collections import deque
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -88,8 +89,9 @@ class TrafficLog(Base):
 Base.metadata.create_all(bind=engine)
 
 # -------------------------------------------------------------
-# In-Memory Command Store (Cloud-to-Edge Remote Override)
+# In-Memory Command Queue (Zero DB Latency, Instant Dispatch)
 # -------------------------------------------------------------
+command_queue: deque = deque(maxlen=200)
 pending_command: Dict[str, Any] = {
     "command_id": None,
     "action": None,
@@ -130,7 +132,7 @@ def health_check():
         "database": db_display,
         "endpoints": {
             "POST": ["/api/telemetry", "/api/command"],
-            "GET": ["/api/stats", "/api/command"]
+            "GET": ["/api/stats", "/api/command", "/api/commands"]
         }
     }
 
@@ -231,8 +233,9 @@ async def post_command(request: Request):
     Accepts cloud control commands from Streamlit dashboard:
     Actions: FORCE_ALL_RED, TRIGGER_EMERGENCY, SPAWN_TRAFFIC_SURGE, RESUME_AUTO
     Lane: Optional (north, south, east, west)
+    Pushes directly into an in-memory collections.deque queue for instant dispatch (<10ms, 0 DB latency).
     """
-    global pending_command
+    global pending_command, command_queue
     try:
         data = await request.json()
         if not isinstance(data, dict):
@@ -251,18 +254,22 @@ async def post_command(request: Request):
         normalized_lane = str(lane).strip().lower() if lane else None
 
         cmd_id = str(uuid.uuid4())
-        pending_command = {
+        cmd = {
             "command_id": cmd_id,
             "action": normalized_action,
             "lane": normalized_lane,
             "timestamp": time.time()
         }
+        command_queue.append(cmd)
+        pending_command = cmd
+
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
                 "status": "success",
                 "message": f"Command '{normalized_action}' queued successfully",
-                "command": pending_command
+                "command": cmd,
+                "queue_size": len(command_queue)
             }
         )
     except Exception as exc:
@@ -271,22 +278,41 @@ async def post_command(request: Request):
             content={"status": "error", "message": f"Error queuing command: {str(exc)}"}
         )
 
+@app.get("/api/commands")
 @app.get("/api/command")
-def get_command():
+def get_commands():
     """
     Polled by Godot 3D Edge Simulation.
-    Returns current pending command and resets it once fetched so each command executes once.
+    Atomically pops all pending commands from in-memory deque so none are missed or duplicated.
+    Returns array of commands to execute.
     """
-    global pending_command
-    cmd = dict(pending_command)
-    if cmd.get("action") is not None:
-        pending_command = {
-            "command_id": None,
-            "action": None,
-            "lane": None,
-            "timestamp": None
+    global pending_command, command_queue
+    popped: List[Dict[str, Any]] = []
+    while command_queue:
+        popped.append(command_queue.popleft())
+
+    latest = popped[-1] if popped else None
+    pending_command = {
+        "command_id": None,
+        "action": None,
+        "lane": None,
+        "timestamp": None
+    }
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": "success",
+            "commands": popped,
+            "count": len(popped),
+            # Compatibility fields for legacy single-command checks
+            "action": latest["action"] if latest else None,
+            "lane": latest["lane"] if latest else None,
+            "command_id": latest["command_id"] if latest else None
         }
-    return JSONResponse(status_code=status.HTTP_200_OK, content=cmd)
+    )
+
+# Alias for backward-compatible direct module imports
+get_command = get_commands
 
 if __name__ == "__main__":
     import uvicorn

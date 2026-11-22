@@ -90,10 +90,10 @@ def send_remote_command(action: str, lane: str = None) -> tuple:
             headers={"Content-Type": "application/json", "User-Agent": "STMS-Dashboard/1.0"},
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=2.0) as resp:
+        with urllib.request.urlopen(req, timeout=5.0) as resp:
             if resp.status == 200:
                 resp_data = json.loads(resp.read().decode("utf-8"))
-                return True, resp_data.get("message", f"Command '{action}' sent successfully!")
+                return True, resp_data.get("message", f"Command '{action}' acknowledged by backend!")
             return False, f"Backend returned HTTP {resp.status}"
     except Exception as exc:
         return False, f"Failed to send command: {str(exc)}"

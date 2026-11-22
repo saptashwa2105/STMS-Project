@@ -4,7 +4,7 @@ signal telemetry_sent(payload: Dictionary, status_code: int)
 signal connection_status_changed(is_connected: bool)
 
 @export var backend_url: String = "http://127.0.0.1:8000/api/telemetry"
-@export var dispatch_interval: float = 1.0
+@export var dispatch_interval: float = 1.8
 
 var http_request: HTTPRequest
 var timer: float = 0.0
@@ -32,7 +32,11 @@ func _process(delta: float):
 		_send_telemetry()
 
 func _send_telemetry():
-	if is_request_in_flight or not traffic_controller:
+	if is_request_in_flight or not traffic_controller or not http_request:
+		return
+
+	# Dedicated HTTPRequest busy guard: never overlap telemetry dispatch requests
+	if http_request.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
 		return
 
 	if not traffic_controller.has_method("get_telemetry_payload"):

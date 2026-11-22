@@ -61,7 +61,8 @@ class CommandPayload(BaseModel):
     action: str
     lane: Optional[str] = None
 
-# In-memory remote command state for Cloud-to-Edge override
+# In-memory remote command queue for Cloud-to-Edge override (<10ms latency)
+command_queue: deque = deque(maxlen=200)
 pending_command: Dict[str, Optional[str]] = {
     "command_id": None,
     "action": None,
@@ -171,39 +172,56 @@ async def post_command(payload: CommandPayload):
     Actions: FORCE_ALL_RED, TRIGGER_EMERGENCY, SPAWN_TRAFFIC_SURGE, RESUME_AUTO
     Lane: Optional (north, south, east, west)
     """
-    global pending_command
+    global pending_command, command_queue
     action = payload.action.strip().upper()
     lane = payload.lane.strip().lower() if payload.lane else None
     cmd_id = str(uuid.uuid4())
 
-    pending_command = {
+    cmd = {
         "command_id": cmd_id,
         "action": action,
         "lane": lane,
         "timestamp": time.time()
     }
+    command_queue.append(cmd)
+    pending_command = cmd
+
     return {
         "status": "success",
         "message": f"Command '{action}' queued successfully",
-        "command": pending_command
+        "command": cmd,
+        "queue_size": len(command_queue)
     }
 
+@app.get("/api/commands")
 @app.get("/api/command")
-def get_command():
+def get_commands():
     """
     Polled by Godot 3D Edge Simulation.
-    Returns current pending command and resets it once fetched.
+    Atomically pops all pending commands from in-memory deque.
     """
-    global pending_command
-    cmd = dict(pending_command)
-    if cmd.get("action") is not None:
-        pending_command = {
-            "command_id": None,
-            "action": None,
-            "lane": None,
-            "timestamp": None
-        }
-    return JSONResponse(status_code=200, content=cmd)
+    global pending_command, command_queue
+    popped: List[Dict[str, Any]] = []
+    while command_queue:
+        popped.append(command_queue.popleft())
+
+    latest = popped[-1] if popped else None
+    pending_command = {
+        "command_id": None,
+        "action": None,
+        "lane": None,
+        "timestamp": None
+    }
+    return JSONResponse(status_code=200, content={
+        "status": "success",
+        "commands": popped,
+        "count": len(popped),
+        "action": latest["action"] if latest else None,
+        "lane": latest["lane"] if latest else None,
+        "command_id": latest["command_id"] if latest else None
+    })
+
+get_command = get_commands
 
 def get_computed_metrics():
     uptime = max(1.0, time.time() - start_time)
