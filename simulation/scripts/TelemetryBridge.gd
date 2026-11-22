@@ -3,7 +3,7 @@ extends Node
 signal telemetry_sent(payload: Dictionary, status_code: int)
 signal connection_status_changed(is_connected: bool)
 
-@export var backend_url: String = "http://127.0.0.1:8000/api/telemetry"
+@export var backend_url: String = "https://stms-project-l3vl.onrender.com/api/telemetry"
 @export var dispatch_interval: float = 1.8
 
 var http_request: HTTPRequest

@@ -22,6 +22,16 @@ venv.bak/
 *.sqlite
 *.sqlite3
 
+# Node & package dependencies
+node_modules/
+npm-debug.log*
+
+# Test logs & caches
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
 # Godot Engine Cache & Imports
 .godot/
 .import/
