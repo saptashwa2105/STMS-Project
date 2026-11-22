@@ -1,0 +1,22 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://byff07d8mei4u"
+path="res://.godot/imported/motorbike.obj-0e1fc67fe689e8b1b39edd134e5af257.mesh"
+
+[deps]
+
+files=["res://.godot/imported/motorbike.obj-0e1fc67fe689e8b1b39edd134e5af257.mesh"]
+
+source_file="res://assets/models/motorbike.obj"
+dest_files=["res://.godot/imported/motorbike.obj-0e1fc67fe689e8b1b39edd134e5af257.mesh", "res://.godot/imported/motorbike.obj-0e1fc67fe689e8b1b39edd134e5af257.mesh"]
+
+[params]
+
+generate_tangents=true
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+optimize_mesh=true
+force_disable_mesh_compression=false

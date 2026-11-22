@@ -32,6 +32,9 @@ npm-debug.log*
 htmlcov/
 *.log
 
+# Build outputs & exported binaries
+build/
+
 # Godot Engine Cache & Imports
 .godot/
 .import/
