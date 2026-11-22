@@ -45,45 +45,45 @@ Experience the full-stack system live without installing anything locally:
 
 ```mermaid
 flowchart TD
-    subgraph OperatorLayer ["📱 Operator & Analytics Layer (Cloud)"]
-        Streamlit["Streamlit Live Dashboard<br/>(Render Cloud)<br/>• Real-Time Queue Analytics<br/>• Remote Traffic Control Center"]
+    subgraph OperatorLayer ["📱 Operator & Analytics Layer - Cloud"]
+        Streamlit["Streamlit Live Dashboard<br/>Render Cloud<br/>• Real-Time Queue Analytics<br/>• Remote Traffic Control Center"]
     end
 
-    subgraph CloudLayer ["☁️ Cloud API Layer (Render)"]
-        FastAPI["FastAPI High-Performance Gateway<br/>• CORS Enabled (*)<br/>• Non-blocking REST Endpoints"]
-        CommandQueue["⚡ In-Memory Command Queue<br/>(collections.deque)<br/>• Sub-10ms Dispatch<br/>• Atomic Pop & Zero Drops"]
-        DBEngine["SQLAlchemy Engine<br/>(Connection Pooling)"]
+    subgraph CloudLayer ["☁️ Cloud API Layer - Render"]
+        FastAPI["FastAPI High-Performance Gateway<br/>• CORS Enabled<br/>• Non-blocking REST Endpoints"]
+        CommandQueue["⚡ In-Memory Command Queue<br/>collections.deque<br/>• Sub-10ms Dispatch<br/>• Atomic Pop & Zero Drops"]
+        DBEngine["SQLAlchemy Engine<br/>Connection Pooling"]
     end
 
-    subgraph DataLayer ["🗄️ Persistence Layer (Serverless Cloud)"]
-        NeonDB[("Neon PostgreSQL<br/>(Serverless Database)<br/>• Historical Telemetry Logs<br/>• Analytics Time-Series")]
+    subgraph DataLayer ["🗄️ Persistence Layer - Serverless Cloud"]
+        NeonDB[("Neon PostgreSQL<br/>Serverless Database<br/>• Historical Telemetry Logs<br/>• Analytics Time-Series")]
     end
 
-    subgraph EdgeLayer ["🚦 Edge Digital Twin Layer (Godot 4.3)"]
-        subgraph GodotClient ["Godot 4 Client (Windows .exe / WebAssembly)"]
+    subgraph EdgeLayer ["🚦 Edge Digital Twin Layer - Godot 4.3"]
+        subgraph GodotClient ["Godot 4 Client - Windows .exe & WebAssembly"]
             SimController["TrafficController.gd<br/>• Adaptive Timing & Mutex Locks<br/>• Anti-Gridlock Yellow Box<br/>• Anti-Starvation Watchdog"]
-            EVP["Emergency Vehicle Preemption<br/>(EVP Green Corridors)"]
+            EVP["Emergency Vehicle Preemption<br/>EVP Green Corridors"]
             
             subgraph DualHTTP ["Dual Dedicated HTTPRequest Nodes"]
-                TelemNode["TelemetryBridge HTTPRequest<br/>(POST /api/telemetry @ 1.8s)"]
-                CmdNode["CommandPoller HTTPRequest<br/>(GET /api/commands @ 0.5s)"]
+                TelemNode["TelemetryBridge HTTPRequest<br/>POST /api/telemetry @ 1.8s"]
+                CmdNode["CommandPoller HTTPRequest<br/>GET /api/commands @ 0.5s"]
             end
         end
     end
 
     %% Flow interactions
-    Streamlit -->|1. POST /api/command<br/>(Force Red, EVP, Surge, Auto)| FastAPI
-    FastAPI -->|2. Instant Push (<10ms)| CommandQueue
-    FastAPI -->|3. Async Telemetry Log| DBEngine
-    DBEngine --> NeonDB
-    NeonDB -.->|Historical Stats Query| Streamlit
+    Streamlit -->|"1. POST /api/command<br/>Force Red, EVP, Surge, Auto"| FastAPI
+    FastAPI -->|"2. Instant Push < 10ms"| CommandQueue
+    FastAPI -->|"3. Async Telemetry Log"| DBEngine
+    DBEngine -->|"SQLAlchemy INSERT"| NeonDB
+    NeonDB -.->|"Historical Stats Query"| Streamlit
 
-    CmdNode -->|4. High-Frequency Poll (0.5s)| CommandQueue
-    CommandQueue -->|5. Atomic Drain & Deliver| SimController
-    SimController --> EVP
+    CmdNode -->|"4. High-Frequency Poll @ 0.5s"| CommandQueue
+    CommandQueue -->|"5. Atomic Drain & Deliver"| SimController
+    SimController -->|"Signal Override"| EVP
 
-    SimController -->|6. Intersection Metrics| TelemNode
-    TelemNode -->|7. Telemetry Dispatch (1.8s)| FastAPI
+    SimController -->|"6. Intersection Metrics"| TelemNode
+    TelemNode -->|"7. Telemetry Dispatch @ 1.8s"| FastAPI
 ```
 
 ---
