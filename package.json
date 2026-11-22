@@ -1,0 +1,25 @@
+{
+  "name": "stms-traffic-management-system",
+  "version": "1.2.0",
+  "description": "Smart Traffic Management System (STMS) - 3D Digital Twin with FastAPI Backend & Streamlit Analytics",
+  "main": "scripts/dev.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/dev.js",
+    "start": "node scripts/dev.js",
+    "test": "node scripts/build.js",
+    "backend": "node scripts/run-backend.js",
+    "dashboard": "node scripts/run-dashboard.js",
+    "simulation": "node scripts/run-simulation.js"
+  },
+  "keywords": [
+    "stms",
+    "traffic-management",
+    "digital-twin",
+    "fastapi",
+    "streamlit",
+    "godot4"
+  ],
+  "author": "",
+  "license": "MIT"
+}

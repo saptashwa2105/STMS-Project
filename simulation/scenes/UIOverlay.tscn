@@ -1,0 +1,313 @@
+[gd_scene load_steps=6 format=3 uid="uid://c3m7f6e0p9y5q"]
+
+[ext_resource type="Script" path="res://scripts/UIOverlay.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass"]
+content_margin_left = 16.0
+content_margin_top = 14.0
+content_margin_right = 16.0
+content_margin_bottom = 14.0
+bg_color = Color(0.05, 0.08, 0.14, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.35, 0.55, 0.40)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_emerg"]
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+bg_color = Color(0.65, 0.08, 0.08, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.3, 0.3, 0.8)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.8, 0.1, 0.1, 0.5)
+shadow_size = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.12, 0.18, 0.28, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.45, 0.7, 0.4)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.2, 0.35, 0.6, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.65, 1.0, 0.8)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="UIOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="PanelMain" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 400.0
+offset_bottom = 345.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass")
+
+[node name="VBox" type="VBoxContainer" parent="PanelMain"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblTitle" type="Label" parent="PanelMain/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "🚦 SMART TRAFFIC DIGITAL TWIN"
+
+[node name="HBoxPhase" type="HBoxContainer" parent="PanelMain/VBox"]
+layout_mode = 2
+
+[node name="LblPhase" type="Label" parent="PanelMain/VBox/HBoxPhase"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "NS_GREEN"
+
+[node name="LblCountdown" type="Label" parent="PanelMain/VBox/HBoxPhase"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "12.0s"
+
+[node name="LblFormula" type="Label" parent="PanelMain/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Dynamic Timing: 8s base + (0 veh * 2.5s) = 8.0s (Max 35s)"
+autowrap_mode = 2
+
+[node name="LblClearZone" type="Label" parent="PanelMain/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "🟡 Yellow Box Rule: Active (Anti-Gridlock)"
+
+[node name="LblStarvation" type="Label" parent="PanelMain/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.2, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚠️ ANTI-STARVATION OVERRIDE: [EAST LANE]"
+
+[node name="HSeparator" type="HSeparator" parent="PanelMain/VBox"]
+layout_mode = 2
+
+[node name="LblDensHeader" type="Label" parent="PanelMain/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "REAL-TIME QUEUE DENSITIES"
+
+[node name="GridLanes" type="GridContainer" parent="PanelMain/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 6
+columns = 3
+
+[node name="LblN" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "North:"
+
+[node name="BarN" type="ProgressBar" parent="PanelMain/VBox/GridLanes"]
+custom_minimum_size = Vector2(170, 14)
+layout_mode = 2
+max_value = 10.0
+show_percentage = false
+
+[node name="ValN" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "0"
+
+[node name="LblS" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "South:"
+
+[node name="BarS" type="ProgressBar" parent="PanelMain/VBox/GridLanes"]
+custom_minimum_size = Vector2(170, 14)
+layout_mode = 2
+max_value = 10.0
+show_percentage = false
+
+[node name="ValS" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "0"
+
+[node name="LblE" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "East:"
+
+[node name="BarE" type="ProgressBar" parent="PanelMain/VBox/GridLanes"]
+custom_minimum_size = Vector2(170, 14)
+layout_mode = 2
+max_value = 10.0
+show_percentage = false
+
+[node name="ValE" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "0"
+
+[node name="LblW" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "West:"
+
+[node name="BarW" type="ProgressBar" parent="PanelMain/VBox/GridLanes"]
+custom_minimum_size = Vector2(170, 14)
+layout_mode = 2
+max_value = 10.0
+show_percentage = false
+
+[node name="ValW" type="Label" parent="PanelMain/VBox/GridLanes"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "0"
+
+[node name="EmergencyBanner" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -240.0
+offset_top = 20.0
+offset_right = 240.0
+offset_bottom = 72.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_emerg")
+
+[node name="HBoxEmerg" type="HBoxContainer" parent="EmergencyBanner"]
+layout_mode = 2
+alignment = 1
+
+[node name="LblEmergIcon" type="Label" parent="EmergencyBanner/HBoxEmerg"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "🚨 "
+
+[node name="LblEmergLane" type="Label" parent="EmergencyBanner/HBoxEmerg"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "EMERGENCY PREEMPTION ACTIVE: [NORTH LANE]"
+
+[node name="PanelTelemetry" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -350.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 98.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass")
+
+[node name="VBoxTelem" type="VBoxContainer" parent="PanelTelemetry"]
+layout_mode = 2
+
+[node name="LblTelemStatus" type="Label" parent="PanelTelemetry/VBoxTelem"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "CLOUD INGESTION: CONNECTING..."
+
+[node name="LblPackets" type="Label" parent="PanelTelemetry/VBoxTelem"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Telemetry Dispatched: 0 frames"
+
+[node name="PanelControls" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -65.0
+offset_right = 400.0
+offset_bottom = -15.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass")
+
+[node name="HBoxBtns" type="HBoxContainer" parent="PanelControls"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BtnAmbulance" type="Button" parent="PanelControls/HBoxBtns"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "🚑 Ambulance [A]"
+
+[node name="BtnFiretruck" type="Button" parent="PanelControls/HBoxBtns"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "🚒 Fire Truck [F]"
+
+[node name="BtnBurst" type="Button" parent="PanelControls/HBoxBtns"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "🚗 Surge [R]"
+
+[node name="BtnClear" type="Button" parent="PanelControls/HBoxBtns"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "🧹 Clear Gridlock"
+
+[node name="BtnCam" type="Button" parent="PanelControls/HBoxBtns"]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "🎥 Camera [C]"

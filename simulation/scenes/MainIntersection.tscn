@@ -1,0 +1,496 @@
+[gd_scene load_steps=37 format=3 uid="uid://b7v8x2p4q5y1k"]
+
+[ext_resource type="Script" path="res://scripts/MainIntersection.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/TrafficController.gd" id="2_ctrl"]
+[ext_resource type="Script" path="res://scripts/TelemetryBridge.gd" id="3_telem"]
+[ext_resource type="Script" path="res://scripts/VehicleSpawner.gd" id="4_spawn"]
+[ext_resource type="PackedScene" uid="uid://c8qy4tl7f8a1x" path="res://scenes/TrafficLightPole.tscn" id="5_pole"]
+[ext_resource type="PackedScene" uid="uid://bv8k2p34x5y1r" path="res://scenes/Vehicle.tscn" id="6_veh_scene"]
+[ext_resource type="PackedScene" uid="uid://c3m7f6e0p9y5q" path="res://scenes/UIOverlay.tscn" id="7_ui"]
+[ext_resource type="Script" path="res://scripts/IntersectionClearZone.gd" id="8_clear_zone"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_env"]
+sky_top_color = Color(0.22, 0.45, 0.85, 1)
+sky_horizon_color = Color(0.68, 0.76, 0.88, 1)
+ground_bottom_color = Color(0.12, 0.14, 0.18, 1)
+ground_horizon_color = Color(0.45, 0.50, 0.55, 1)
+
+[sub_resource type="Sky" id="Sky_env"]
+sky_material = SubResource("ProceduralSkyMaterial_env")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_env")
+tonemap_mode = 3
+glow_enabled = true
+glow_intensity = 0.85
+glow_bloom = 0.3
+glow_blend_mode = 1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_grass"]
+albedo_color = Color(0.13, 0.22, 0.15, 1)
+roughness = 0.95
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+material = SubResource("StandardMaterial3D_grass")
+size = Vector2(160, 160)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_asphalt"]
+albedo_color = Color(0.14, 0.15, 0.17, 1)
+roughness = 0.65
+
+[sub_resource type="BoxMesh" id="BoxMesh_road_ns"]
+material = SubResource("StandardMaterial3D_asphalt")
+size = Vector3(8.6, 0.08, 140)
+
+[sub_resource type="BoxMesh" id="BoxMesh_road_ew"]
+material = SubResource("StandardMaterial3D_asphalt")
+size = Vector3(140, 0.08, 8.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_white_line"]
+albedo_color = Color(0.95, 0.95, 0.98, 1)
+roughness = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_stop_line"]
+material = SubResource("StandardMaterial3D_white_line")
+size = Vector3(4.2, 0.09, 0.65)
+
+[sub_resource type="BoxMesh" id="BoxMesh_zebra_stripe"]
+material = SubResource("StandardMaterial3D_white_line")
+size = Vector3(0.6, 0.09, 2.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yellow_line"]
+albedo_color = Color(0.96, 0.82, 0.15, 1)
+roughness = 0.35
+emission_enabled = true
+emission = Color(0.96, 0.82, 0.15, 1)
+emission_energy_multiplier = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_divider_ns"]
+material = SubResource("StandardMaterial3D_yellow_line")
+size = Vector3(0.22, 0.09, 52)
+
+[sub_resource type="BoxMesh" id="BoxMesh_divider_ew"]
+material = SubResource("StandardMaterial3D_yellow_line")
+size = Vector3(52, 0.09, 0.22)
+
+[sub_resource type="BoxMesh" id="BoxMesh_yellow_hatch"]
+material = SubResource("StandardMaterial3D_yellow_line")
+size = Vector3(0.25, 0.09, 9.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_yellow_border"]
+material = SubResource("StandardMaterial3D_yellow_line")
+size = Vector3(8.2, 0.09, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sidewalk"]
+albedo_color = Color(0.48, 0.50, 0.54, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_sidewalk"]
+material = SubResource("StandardMaterial3D_sidewalk")
+size = Vector3(26, 0.22, 26)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bldg1"]
+albedo_color = Color(0.18, 0.24, 0.35, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bldg2"]
+albedo_color = Color(0.28, 0.20, 0.24, 1)
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_building1"]
+material = SubResource("StandardMaterial3D_bldg1")
+size = Vector3(18, 26, 18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_building2"]
+material = SubResource("StandardMaterial3D_bldg2")
+size = Vector3(16, 20, 16)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trunk"]
+albedo_color = Color(0.35, 0.22, 0.12, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_trunk"]
+material = SubResource("StandardMaterial3D_trunk")
+top_radius = 0.2
+bottom_radius = 0.3
+height = 2.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_foliage"]
+albedo_color = Color(0.15, 0.48, 0.22, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_foliage"]
+material = SubResource("StandardMaterial3D_foliage")
+top_radius = 0.1
+bottom_radius = 1.6
+height = 3.6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lamp_head"]
+albedo_color = Color(1, 0.95, 0.8, 1)
+emission_enabled = true
+emission = Color(1, 0.95, 0.75, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="SphereMesh" id="SphereMesh_lamp_bulb"]
+material = SubResource("StandardMaterial3D_lamp_head")
+radius = 0.25
+height = 0.35
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_clear_zone"]
+size = Vector3(14, 4, 14)
+
+[node name="MainIntersection" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.454519, 0.541675, 0, 0.766044, 0.642788, -0.707107, -0.454519, 0.541675, 25, 40, 25)
+shadow_enabled = true
+shadow_bias = 0.02
+directional_shadow_max_distance = 130.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="Roads" type="Node3D" parent="."]
+
+[node name="RoadNS" type="MeshInstance3D" parent="Roads"]
+mesh = SubResource("BoxMesh_road_ns")
+
+[node name="RoadEW" type="MeshInstance3D" parent="Roads"]
+mesh = SubResource("BoxMesh_road_ew")
+
+[node name="StopLineNorth" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.15, 0.01, -7.0)
+mesh = SubResource("BoxMesh_stop_line")
+
+[node name="StopLineSouth" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.15, 0.01, 7.0)
+mesh = SubResource("BoxMesh_stop_line")
+
+[node name="StopLineEast" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 7.0, 0.01, -2.15)
+mesh = SubResource("BoxMesh_stop_line")
+
+[node name="StopLineWest" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -7.0, 0.01, 2.15)
+mesh = SubResource("BoxMesh_stop_line")
+
+[node name="DividerNorth" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -37)
+mesh = SubResource("BoxMesh_divider_ns")
+
+[node name="DividerSouth" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 37)
+mesh = SubResource("BoxMesh_divider_ns")
+
+[node name="DividerEast" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37, 0.01, 0)
+mesh = SubResource("BoxMesh_divider_ew")
+
+[node name="DividerWest" type="MeshInstance3D" parent="Roads"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37, 0.01, 0)
+mesh = SubResource("BoxMesh_divider_ew")
+
+[node name="YellowBoxMarkings" type="Node3D" parent="Roads"]
+
+[node name="BoxBorderN" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -4.1)
+mesh = SubResource("BoxMesh_yellow_border")
+
+[node name="BoxBorderS" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 4.1)
+mesh = SubResource("BoxMesh_yellow_border")
+
+[node name="BoxBorderE" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 4.1, 0.01, 0)
+mesh = SubResource("BoxMesh_yellow_border")
+
+[node name="BoxBorderW" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -4.1, 0.01, 0)
+mesh = SubResource("BoxMesh_yellow_border")
+
+[node name="HatchDiag1" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 0, 0.01, 0)
+mesh = SubResource("BoxMesh_yellow_hatch")
+
+[node name="HatchDiag2" type="MeshInstance3D" parent="Roads/YellowBoxMarkings"]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 0, 0.01, 0)
+mesh = SubResource("BoxMesh_yellow_hatch")
+
+[node name="ZebraCrosswalks" type="Node3D" parent="Roads"]
+
+[node name="ZebraN1" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraN2" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraN3" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraN4" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraN5" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraN6" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.0, 0.01, -9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS1" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS2" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS3" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS4" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS5" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraS6" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.0, 0.01, 9.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE1" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, -3.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE2" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, -1.8)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE3" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, -0.6)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE4" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, 0.6)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE5" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, 1.8)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraE6" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 9.0, 0.01, 3.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW1" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, -3.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW2" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, -1.8)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW3" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, -0.6)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW4" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, 0.6)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW5" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, 1.8)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="ZebraW6" type="MeshInstance3D" parent="Roads/ZebraCrosswalks"]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -9.0, 0.01, 3.0)
+mesh = SubResource("BoxMesh_zebra_stripe")
+
+[node name="Sidewalks" type="Node3D" parent="."]
+
+[node name="SidewalkNW" type="MeshInstance3D" parent="Sidewalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.11, -18)
+mesh = SubResource("BoxMesh_sidewalk")
+
+[node name="SidewalkNE" type="MeshInstance3D" parent="Sidewalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0.11, -18)
+mesh = SubResource("BoxMesh_sidewalk")
+
+[node name="SidewalkSW" type="MeshInstance3D" parent="Sidewalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0.11, 18)
+mesh = SubResource("BoxMesh_sidewalk")
+
+[node name="SidewalkSE" type="MeshInstance3D" parent="Sidewalks"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0.11, 18)
+mesh = SubResource("BoxMesh_sidewalk")
+
+[node name="EnvironmentProps" type="Node3D" parent="."]
+
+[node name="TreeNW" type="Node3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0.22, -10)
+
+[node name="Trunk" type="MeshInstance3D" parent="EnvironmentProps/TreeNW"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Foliage" type="MeshInstance3D" parent="EnvironmentProps/TreeNW"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+mesh = SubResource("CylinderMesh_foliage")
+
+[node name="TreeNE" type="Node3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.22, -10)
+
+[node name="Trunk" type="MeshInstance3D" parent="EnvironmentProps/TreeNE"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Foliage" type="MeshInstance3D" parent="EnvironmentProps/TreeNE"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+mesh = SubResource("CylinderMesh_foliage")
+
+[node name="TreeSW" type="Node3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0.22, 10)
+
+[node name="Trunk" type="MeshInstance3D" parent="EnvironmentProps/TreeSW"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Foliage" type="MeshInstance3D" parent="EnvironmentProps/TreeSW"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+mesh = SubResource("CylinderMesh_foliage")
+
+[node name="TreeSE" type="Node3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.22, 10)
+
+[node name="Trunk" type="MeshInstance3D" parent="EnvironmentProps/TreeSE"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="Foliage" type="MeshInstance3D" parent="EnvironmentProps/TreeSE"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+mesh = SubResource("CylinderMesh_foliage")
+
+[node name="LampNW" type="MeshInstance3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 4.5, -11)
+mesh = SubResource("SphereMesh_lamp_bulb")
+
+[node name="OmniNW" type="OmniLight3D" parent="EnvironmentProps/LampNW"]
+light_color = Color(1, 0.92, 0.75, 1)
+light_energy = 1.8
+omni_range = 16.0
+
+[node name="LampNE" type="MeshInstance3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6, 4.5, -11)
+mesh = SubResource("SphereMesh_lamp_bulb")
+
+[node name="OmniNE" type="OmniLight3D" parent="EnvironmentProps/LampNE"]
+light_color = Color(1, 0.92, 0.75, 1)
+light_energy = 1.8
+omni_range = 16.0
+
+[node name="LampSW" type="MeshInstance3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 4.5, 11)
+mesh = SubResource("SphereMesh_lamp_bulb")
+
+[node name="OmniSW" type="OmniLight3D" parent="EnvironmentProps/LampSW"]
+light_color = Color(1, 0.92, 0.75, 1)
+light_energy = 1.8
+omni_range = 16.0
+
+[node name="LampSE" type="MeshInstance3D" parent="EnvironmentProps"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6, 4.5, 11)
+mesh = SubResource("SphereMesh_lamp_bulb")
+
+[node name="OmniSE" type="OmniLight3D" parent="EnvironmentProps/LampSE"]
+light_color = Color(1, 0.92, 0.75, 1)
+light_energy = 1.8
+omni_range = 16.0
+
+[node name="Buildings" type="Node3D" parent="."]
+
+[node name="BldgNW" type="MeshInstance3D" parent="Buildings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 13, -22)
+mesh = SubResource("BoxMesh_building1")
+
+[node name="BldgNE" type="MeshInstance3D" parent="Buildings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 10, -22)
+mesh = SubResource("BoxMesh_building2")
+
+[node name="BldgSW" type="MeshInstance3D" parent="Buildings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 10, 22)
+mesh = SubResource("BoxMesh_building2")
+
+[node name="BldgSE" type="MeshInstance3D" parent="Buildings"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 13, 22)
+mesh = SubResource("BoxMesh_building1")
+
+[node name="IntersectionClearZone" type="Area3D" parent="."]
+collision_layer = 1
+collision_mask = 2
+script = ExtResource("8_clear_zone")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="IntersectionClearZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("BoxShape3D_clear_zone")
+
+[node name="TrafficLights" type="Node3D" parent="."]
+
+[node name="PoleNorth" parent="TrafficLights" instance=ExtResource("5_pole")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2, 0, -7.0)
+direction = "north"
+
+[node name="PoleSouth" parent="TrafficLights" instance=ExtResource("5_pole")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 5.2, 0, 7.0)
+direction = "south"
+
+[node name="PoleEast" parent="TrafficLights" instance=ExtResource("5_pole")]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 7.0, 0, -5.2)
+direction = "east"
+
+[node name="PoleWest" parent="TrafficLights" instance=ExtResource("5_pole")]
+transform = Transform3D(1.19249e-08, 0, -1, 0, 1, 0, 1, 0, 1.19249e-08, -7.0, 0, 5.2)
+direction = "west"
+
+[node name="Vehicles" type="Node3D" parent="."]
+
+[node name="TrafficController" type="Node" parent="." node_paths=PackedStringArray("pole_north", "pole_south", "pole_east", "pole_west", "intersection_clear_zone")]
+script = ExtResource("2_ctrl")
+pole_north = NodePath("../TrafficLights/PoleNorth")
+pole_south = NodePath("../TrafficLights/PoleSouth")
+pole_east = NodePath("../TrafficLights/PoleEast")
+pole_west = NodePath("../TrafficLights/PoleWest")
+intersection_clear_zone = NodePath("../IntersectionClearZone")
+
+[node name="TelemetryBridge" type="Node" parent="."]
+script = ExtResource("3_telem")
+
+[node name="VehicleSpawner" type="Node" parent="." node_paths=PackedStringArray("traffic_controller", "intersection_clear_zone", "vehicles_root")]
+script = ExtResource("4_spawn")
+vehicle_scene = ExtResource("6_veh_scene")
+traffic_controller = NodePath("../TrafficController")
+intersection_clear_zone = NodePath("../IntersectionClearZone")
+vehicles_root = NodePath("../Vehicles")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(0.707107, -0.454519, 0.541675, 0, 0.766044, 0.642788, -0.707107, -0.454519, 0.541675, 30, 36, 30)
+fov = 42.0
+
+[node name="UIOverlay" parent="." node_paths=PackedStringArray("traffic_controller", "telemetry_bridge", "vehicle_spawner") instance=ExtResource("7_ui")]
+traffic_controller = NodePath("../TrafficController")
+telemetry_bridge = NodePath("../TelemetryBridge")
+vehicle_spawner = NodePath("../VehicleSpawner")

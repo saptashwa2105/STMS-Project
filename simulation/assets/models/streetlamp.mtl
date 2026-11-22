@@ -1,0 +1,17 @@
+# Material file for streetlamp
+
+newmtl lamp_pole
+Kd 0.2200 0.2500 0.3000
+Ka 0.25 0.25 0.25
+Ks 0.5 0.5 0.5
+Ns 32.0
+d 1.0
+
+newmtl lamp_bulb
+Kd 1.0000 0.9500 0.8000
+Ka 0.25 0.25 0.25
+Ks 0.5 0.5 0.5
+Ns 32.0
+d 1.0
+Ke 2.5000 2.2000 1.2000
+

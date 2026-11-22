@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3 uid="uid://bv8k2p34x5y1r"]
+
+[ext_resource type="Script" path="res://scripts/Vehicle.gd" id="1_vehicle"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_car"]
+size = Vector3(1.8, 1.6, 4.2)
+
+[node name="Vehicle" type="CharacterBody3D" groups=["Vehicle"]]
+collision_layer = 2
+collision_mask = 3
+script = ExtResource("1_vehicle")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BoxShape3D_car")
+
+[node name="FrontRay" type="RayCast3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, -1.8)
+target_position = Vector3(0, 0, -4.5)
+collision_mask = 2
+
+[node name="ExitClearRay" type="RayCast3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, -2.0)
+target_position = Vector3(0, 0, -25.0)
+collision_mask = 2
+
+[node name="ModelContainer" type="Node3D" parent="."]

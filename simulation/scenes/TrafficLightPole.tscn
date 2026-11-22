@@ -1,0 +1,57 @@
+[gd_scene load_steps=7 format=3 uid="uid://c8qy4tl7f8a1x"]
+
+[ext_resource type="Script" path="res://scripts/TrafficLightPole.gd" id="1_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pole"]
+albedo_color = Color(0.2, 0.22, 0.26, 1)
+metallic = 0.8
+roughness = 0.3
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pole"]
+material = SubResource("StandardMaterial3D_pole")
+top_radius = 0.12
+bottom_radius = 0.16
+height = 6.0
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_arm"]
+material = SubResource("StandardMaterial3D_pole")
+top_radius = 0.08
+bottom_radius = 0.08
+height = 3.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_housing"]
+material = SubResource("StandardMaterial3D_pole")
+size = Vector3(0.5, 1.5, 0.35)
+
+[sub_resource type="SphereMesh" id="SphereMesh_lens"]
+radius = 0.18
+height = 0.2
+radial_segments = 16
+rings = 8
+
+[node name="TrafficLightPole" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Pole" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+mesh = SubResource("CylinderMesh_pole")
+
+[node name="Arm" type="MeshInstance3D" parent="."]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 1.8, 5.7, 0)
+mesh = SubResource("CylinderMesh_arm")
+
+[node name="Housing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 5.2, 0)
+mesh = SubResource("BoxMesh_housing")
+
+[node name="LightRed" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 5.65, 0.18)
+mesh = SubResource("SphereMesh_lens")
+
+[node name="LightYellow" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 5.2, 0.18)
+mesh = SubResource("SphereMesh_lens")
+
+[node name="LightGreen" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 4.75, 0.18)
+mesh = SubResource("SphereMesh_lens")
